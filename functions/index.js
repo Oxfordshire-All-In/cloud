@@ -5,19 +5,28 @@ let db = admin.firestore();
 
 const {google} = require("googleapis");
 
+// deploy to GCP with
+// firebase deploy --only functions
+// https://us-central1-mapping-7c4a8.cloudfunctions.net/read_sheets
+
+// might be easier to debug locally, if firebase auth can be set up
+// https://firebase.google.com/docs/firestore/quickstart?authuser=1
+// https://support.google.com/firebase/answer/7015592?authuser=1
+
+// useful node links
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
+
+// TODO port over geocoding
+// https://script.google.com/a/oxfordshireallin.org/d/12YebllU_jZJcCJxDLZSV4DQgqxZ9xf4hHbqyHGCDsHJ3i2A8MtZluUMF/edit
+
 
 exports.read_sheets = functions.https.onRequest((request, response) => {
 
-    // const sheet_id = '1uo2ZwxV4cyigS8uFAUKa_n9zCMK_jy5z27IiKWh4q58';  // test
-    const sheet_id = '11Gwlq47Et6sNK-Cfopli5XP_arI40NatrU4IvjQfxGM';  // real
+    const sheet_id = '11Gwlq47Et6sNK-Cfopli5XP_arI40NatrU4IvjQfxGM';
     sheets_p = authenticate(response)
 
-    sheets_p.then(
-            (sheets_api) => get_rows(sheets_api, sheet_id)
-        ) // success getting data
-        // .then((value) => console.log('value ', value))  // log data
-        // .then(response.send('Success'))
-        // .then((value) => response.send(value))
+    sheets_p
+        .then((sheets_api) => get_rows(sheets_api, sheet_id))
         .then((rows) => write_rows(rows))
         .then(response.send("Write complete"))
         .catch(response.send('Failed'))
@@ -69,7 +78,6 @@ function make_row_obj(row_arr) {
     ]
     var row = {}
     entries = schema.map((e, i) => [[e], row_arr[i]])  // i.e. pairs
-    // console.log('entries', entries)
     
     // add to row
     // return Object.fromEntries(entries);  // sadly not supported?
@@ -81,7 +89,6 @@ function make_row_obj(row_arr) {
           delete row[key];
         }
       });
-    // console.log('row', row)
     return row
 }
 
@@ -89,12 +96,14 @@ function make_row_obj(row_arr) {
 async function get_rows(sheets, sheet_id) {
     // console.log('Opening' + sheet_id + 'with' + sheets)
 
+    // TODO get the whole sheet, not just the first few rows
     const request = {
         spreadsheetId: sheet_id,
         range: 'Responses via online form!A2:Q50',
     }
 
     let data;
+    // https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get
     data = (await sheets.spreadsheets.values.get(request)).data;
     console.log('Read data ', data)
 
@@ -102,45 +111,18 @@ async function get_rows(sheets, sheet_id) {
     rows = await data.values.map((row) => make_row_obj(row))
     console.log('Converted to rows ', rows)
     return rows
-
-    // let row;
-    // row = await data.values[12]
-    // console.log('Read row ', row)
-
-    // // let value;
-    // // value = await row[1]
-    // // console.log('Read value ', value)
-
-    // return make_row_obj(row)
 }
 
-
-// // Create and Deploy Your First Cloud Functions
-// // https://firebase.google.com/docs/functions/write-firebase-functions
-//
-exports.helloWorld = functions.https.onRequest((request, response) => {
- response.send("Hello from Firebase!");
-});
-
-async function write_rows(rows) {
-
-    // await rows.forEach((row, i) => write_row(row))
-    // for (row in rows) {
-    const promises = rows.map(async row => {
-        await write_row(row)
-        // .then(console.log('Confirming write successful'))
-        // .catch(console.log)
-    })
-    await Promise.all(promises)
-}
 
 function write_row(row) {
     // console.log('Writing', row)
+    // https://googleapis.dev/nodejs/firestore/latest/CollectionReference.html#add
     let set_row = db.collection('community_responses').add(row)  // promise to write the row
         .then(console.log('Successfully wrote ', row))
         .catch(x => console.log('Failure writing: ', x));
-    return set_row  // need to return the promise
+    return set_row  // need to return the promise for await in write_rows to work
 }
+
 
 exports.write_test = functions.https.onRequest((request, response) => {
 
@@ -164,3 +146,25 @@ exports.write_test = functions.https.onRequest((request, response) => {
     response.send("Write complete, may or may not be successful");
 
 });
+
+
+
+// // Create and Deploy Your First Cloud Functions
+// // https://firebase.google.com/docs/functions/write-firebase-functions
+exports.helloWorld = functions.https.onRequest((request, response) => {
+    response.send("Hello from Firebase!");
+   });
+   
+   async function write_rows(rows) {
+   
+       // await rows.forEach((row, i) => write_row(row))
+       // for (row in rows) {
+       const promises = rows.map(async row => {
+           await write_row(row)
+           // .then(console.log('Confirming write successful'))
+           // .catch(console.log)
+       })
+       await Promise.all(promises)
+   }
+   
+

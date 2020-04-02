@@ -5,6 +5,8 @@ let db = admin.firestore();
 
 const {google} = require("googleapis");
 
+const MAX_ROWS = 400
+
 // deploy to GCP with
 // firebase deploy --only functions
 // https://us-central1-mapping-7c4a8.cloudfunctions.net/read_sheets
@@ -28,8 +30,8 @@ exports.read_sheets = functions.https.onRequest((request, response) => {
     sheets_p
         .then((sheets_api) => get_rows(sheets_api, sheet_id))
         .then((rows) => write_rows(rows))
-        .then(response.send("Write complete"))
-        .catch(response.send('Failed'))
+        .then((write_output) => response.send("Write: " + (write_output)))
+        .catch((x) => response.status(500).send('Failed ' + x))
 });
 
 
@@ -49,11 +51,48 @@ async function authenticate(response) {
     try {
         sheets = await google.sheets({version: 'v4', auth});
     } catch (err) {
-        response.send('Failed to get sheets')
+        response.status(500).write('Failed to get sheets')
     }
 
-    console.log('Got sheets ' + sheets)
+    console.log('Got sheets')
     return sheets
+}
+
+
+async function get_rows(sheets, sheet_id) {
+
+    // TODO get the whole sheet without specifying the max index?
+    const range = `Responses via online form!A2:Q${MAX_ROWS}`
+    console.log(`Getting range ${range}`)
+    const request = {
+        spreadsheetId: sheet_id,
+        range: range,
+    }
+
+    // https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get
+    let data = (await sheets.spreadsheets.values.get(request)).data;
+
+    let rows = await data.values.map((row) => make_row_obj(row))
+    console.log(rows.length + ' rows')
+    return rows
+}
+
+async function write_rows(rows) {
+    const promises = rows.map(async row => {
+        await write_row(row)
+    })
+    await Promise.all(promises)
+    return 'Writing complete'  // absolutely must return something, for .then() to work
+}
+
+async function write_row(row) {
+    // https://googleapis.dev/nodejs/firestore/latest/CollectionReference.html#add
+    // use timestamp as id
+    let doc_path = await sheettime_to_id(row.timestamp);
+    let set_row = await db.collection('community_responses').doc(doc_path).set(row);
+
+    console.log('Wrote ', doc_path)
+    return set_row  // need to return the promise for await in write_rows to work
 }
 
 function make_row_obj(row_arr) {
@@ -93,35 +132,39 @@ function make_row_obj(row_arr) {
 }
 
 
-async function get_rows(sheets, sheet_id) {
-    // console.log('Opening' + sheet_id + 'with' + sheets)
-
-    // TODO get the whole sheet, not just the first few rows
-    const request = {
-        spreadsheetId: sheet_id,
-        range: 'Responses via online form!A2:Q50',
-    }
-
-    let data;
-    // https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get
-    data = (await sheets.spreadsheets.values.get(request)).data;
-    console.log('Read data ', data)
-
-    let rows;
-    rows = await data.values.map((row) => make_row_obj(row))
-    console.log('Converted to rows ', rows)
-    return rows
+function sheettime_to_id(s) {
+    var parts = s.split(' ')
+    date = parts[0]
+    // console.log(date)
+    day = date.slice(0, 2)
+    month = date.slice(3, 5)
+    year = date.slice(6, 10)
+    time = parts[1]
+    // console.log(time)
+    hour = time.slice(0, 2)
+    minute = time.slice(3, 5)
+    second = time.slice(6, 8)
+    // console.log(d)
+    // console.log(d.toString(36))
+    d = new Date(year, month, day, hour, minute, second)
+    i = Number(d).toString(36)
+    // console.log(i)
+    return i
 }
 
+exports.testing = functions.https.onRequest((request, response) => {
 
-function write_row(row) {
-    // console.log('Writing', row)
-    // https://googleapis.dev/nodejs/firestore/latest/CollectionReference.html#add
-    let set_row = db.collection('community_responses').add(row)  // promise to write the row
-        .then(console.log('Successfully wrote ', row))
-        .catch(x => console.log('Failure writing: ', x));
-    return set_row  // need to return the promise for await in write_rows to work
-}
+
+    db.collection("community_responses").listDocuments().then((docs) => response.send('Got ' + docs.length +' ...' + docs)).catch('Failed')
+
+    // var s = "19/03/2020 10:44:29"
+
+    // // Calling Date without the new keyword returns a string representing the current date and time.
+    // // var d = Date.parse(s)
+    // const i = sheettime_to_id(s)
+    // response.status(200).write('id ' + i)
+})
+
 
 
 exports.write_test = functions.https.onRequest((request, response) => {
@@ -154,17 +197,6 @@ exports.write_test = functions.https.onRequest((request, response) => {
 exports.helloWorld = functions.https.onRequest((request, response) => {
     response.send("Hello from Firebase!");
    });
-   
-   async function write_rows(rows) {
-   
-       // await rows.forEach((row, i) => write_row(row))
-       // for (row in rows) {
-       const promises = rows.map(async row => {
-           await write_row(row)
-           // .then(console.log('Confirming write successful'))
-           // .catch(console.log)
-       })
-       await Promise.all(promises)
-   }
-   
+
+
 

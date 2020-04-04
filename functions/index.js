@@ -77,22 +77,37 @@ async function get_rows(sheets, sheet_id) {
 }
 
 async function write_rows(rows) {
-    const promises = rows.map(async row => {
-        await write_row(row)
-    })
-    await Promise.all(promises)
-    return 'Writing complete'  // absolutely must return something, for .then() to work
-}
 
-async function write_row(row) {
-    // https://googleapis.dev/nodejs/firestore/latest/CollectionReference.html#add
-    // use timestamp as id
-    let doc_path = await sheettime_to_id(row.timestamp);
-    let set_row = await db.collection('community_responses').doc(doc_path).set(row);
+    // combine to one object
+    var huge_doc = {}
+    huge_doc 
+    // might need to await rows
+    rows.forEach((row) => huge_doc[sheettime_to_id(row.timestamp)] = row)  // add each org to huge_doc, keyed by org id constructed from timestamp
+
+    const doc_path = 'all'
+    let write_huge_doc = await db.collection('community_responses').doc(doc_path).set(huge_doc);
 
     console.log('Wrote ', doc_path)
-    return set_row  // need to return the promise for await in write_rows to work
+    return write_huge_doc  // need to return the promise for await in write_rows to work
+
+    // outdated, one doc for all orgs now
+    // const promises = rows.map(async row => {
+    //     await write_row(row)
+    // })
+    // await Promise.all(promises)
+    // return 'Writing complete'  // absolutely must return something, for .then() to work
 }
+
+// outdated, one doc for all orgs now
+// async function write_row(row) {
+//     // https://googleapis.dev/nodejs/firestore/latest/CollectionReference.html#add
+//     // use timestamp as id
+//     let doc_path = await sheettime_to_id(row.timestamp);
+//     let set_row = await db.collection('community_responses').doc(doc_path).set(row);
+
+//     console.log('Wrote ', doc_path)
+//     return set_row  // need to return the promise for await in write_rows to work
+// }
 
 function make_row_obj(row_arr) {
     const schema = [
@@ -139,7 +154,7 @@ function make_row_obj(row_arr) {
     return row
 }
 
-// copied from app script
+// modified from app script
 async function postcodeToLatLong(raw_postcode) {
     const postcode = raw_postcode.toUpperCase()  // and the space?
     var url = 'https://api.postcodes.io/postcodes/' + encodeURIComponent(postcode);

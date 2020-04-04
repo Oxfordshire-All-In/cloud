@@ -5,7 +5,9 @@ let db = admin.firestore();
 
 const {google} = require("googleapis");
 
-const MAX_ROWS = 400
+const fetch = require("node-fetch");
+
+const MAX_ROWS = 500
 
 // deploy to GCP with
 // firebase deploy --only functions
@@ -17,9 +19,6 @@ const MAX_ROWS = 400
 
 // useful node links
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
-
-// TODO port over geocoding
-// https://script.google.com/a/oxfordshireallin.org/d/12YebllU_jZJcCJxDLZSV4DQgqxZ9xf4hHbqyHGCDsHJ3i2A8MtZluUMF/edit
 
 
 exports.read_sheets = functions.https.onRequest((request, response) => {
@@ -128,8 +127,40 @@ function make_row_obj(row_arr) {
           delete row[key];
         }
       });
+
+    // add lat/long to object, calculated w/ API call
+    postcodeToLatLong(row.postcode)
+    .then((latlong) => {
+        row.latitude = latlong[0]
+        row.longitude = latlong[1]
+        return 'complete'
+        })
+    .catch(console.log('Failed to get latlong with ' + row.postcode))
+
     return row
 }
+
+// copied from app script
+async function postcodeToLatLong(raw_postcode) {
+    if (raw_postcode.map) {
+        return raw_postcode.map(postcode_to_lat_long)
+    }
+    else {
+      const postcode = raw_postcode.toUpperCase()  // and the space?
+      var url = 'https://api.postcodes.io/postcodes/' + encodeURIComponent(postcode);
+      // requires node-fetch
+    // https://www.valentinog.com/blog/http-js/
+      let response = await fetch(url, {'muteHttpExceptions': true});
+      // console.log(response);
+      let data = await response.json();
+      console.log(data)
+      if (data.status === 200.0) {
+        return [data.result.latitude, data.result.longitude];
+      } 
+    }
+    return 'Failed';
+  }
+  
 
 
 function sheettime_to_id(s) {

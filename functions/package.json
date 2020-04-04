@@ -17,6 +17,7 @@
     "firebase-functions": "^3.3.0",
     "google-auth-library": "^6.0.0",
     "googleapis": "^39.2.0",
+    "node-fetch": "^2.6.0",
     "request": "^2.88.2"
   },
   "devDependencies": {

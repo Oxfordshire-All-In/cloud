@@ -130,37 +130,32 @@ function make_row_obj(row_arr) {
 
     // add lat/long to object, calculated w/ API call
     postcodeToLatLong(row.postcode)
-    .then((latlong) => {
-        row.latitude = latlong[0]
-        row.longitude = latlong[1]
-        return 'complete'
-        })
-    .catch(console.log('Failed to get latlong with ' + row.postcode))
-
+        .then((latlong) => {
+            row.latitude = latlong[0]
+            row.longitude = latlong[1]
+            return 'complete'
+            })
+        .catch((x) => console.log('Caught'));  // catch must accept an arg
     return row
 }
 
 // copied from app script
 async function postcodeToLatLong(raw_postcode) {
-    if (raw_postcode.map) {
-        return raw_postcode.map(postcode_to_lat_long)
-    }
-    else {
-      const postcode = raw_postcode.toUpperCase()  // and the space?
-      var url = 'https://api.postcodes.io/postcodes/' + encodeURIComponent(postcode);
-      // requires node-fetch
-    // https://www.valentinog.com/blog/http-js/
-      let response = await fetch(url, {'muteHttpExceptions': true});
-      // console.log(response);
-      let data = await response.json();
-      console.log(data)
-      if (data.status === 200.0) {
+    const postcode = raw_postcode.toUpperCase()  // and the space?
+    var url = 'https://api.postcodes.io/postcodes/' + encodeURIComponent(postcode);
+    // requires node-fetch
+// https://www.valentinog.com/blog/http-js/
+    let response = await fetch(url, {'muteHttpExceptions': true});
+    // console.log(response);
+    let data = await response.json();
+//   console.log(data)
+    if (data.status === 200.0) {
         return [data.result.latitude, data.result.longitude];
-      } 
     }
-    return 'Failed';
-  }
-  
+    console.log('Failed to geocode postcode '+ raw_postcode)
+    throw new Error("Whoops!");
+    // return 0;  // which causes latlong[1] to fail and therefore catch to trigger
+}
 
 
 function sheettime_to_id(s) {

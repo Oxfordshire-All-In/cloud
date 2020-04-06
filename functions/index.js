@@ -7,10 +7,11 @@ const {google} = require("googleapis");
 
 const fetch = require("node-fetch");
 
-const MAX_ROWS = 500
+const MAX_ROWS = 800
 
 // deploy to GCP with
 // firebase deploy --only functions
+// firebase deploy --only functions:read_sheets
 // https://us-central1-mapping-7c4a8.cloudfunctions.net/read_sheets
 
 // might be easier to debug locally, if firebase auth can be set up
@@ -79,16 +80,28 @@ async function get_rows(sheets, sheet_id) {
 async function write_rows(rows) {
 
     // combine to one object
-    var huge_doc = {}
-    huge_doc 
-    // might need to await rows
-    rows.forEach((row) => huge_doc[sheettime_to_id(row.timestamp)] = row)  // add each org to huge_doc, keyed by org id constructed from timestamp
+    var all_huge_doc = {} 
+    rows.forEach((row) => all_huge_doc[sheettime_to_id(row.timestamp)] = row)  // add each org to public_huge_doc, keyed by org id constructed from timestamp
+    let write_all_huge_doc = await db.collection('community_responses').doc('all').set(all_huge_doc);
+    console.log('Wrote all data')
 
-    const doc_path = 'all'
-    let write_huge_doc = await db.collection('community_responses').doc(doc_path).set(huge_doc);
+    // same again for public info only
+    // yeah, I should refactor...
+    var public_huge_doc = {} 
+    rows.forEach((row) => {
+        delete row.contact_first_name
+        delete row.contact_last_name
+        delete row.contact_email  // seperate to group email
+        delete row.contact_telephone
+        delete row.volunteer_count
+        delete row.oai_help
+        public_huge_doc[sheettime_to_id(row.timestamp)] = row
+        return ;
+    })
+    let write_public_huge_doc = await db.collection('community_responses').doc('public').set(public_huge_doc);
+    console.log('Wrote public data')
 
-    console.log('Wrote ', doc_path)
-    return write_huge_doc  // need to return the promise for await in write_rows to work
+    return 'anything'  // need to return something for await in write_rows to work
 
     // outdated, one doc for all orgs now
     // const promises = rows.map(async row => {
@@ -118,14 +131,14 @@ function make_row_obj(row_arr) {
         'locations',
         'link_primary',
         'link_social',
-        'contact_first_name',
-        'contact_last_name',
-        'contact_email',
-        'contact_telephone',
+        'contact_first_name', // private
+        'contact_last_name',  // private
+        'contact_email',  // private
+        'contact_telephone',  // private
         'group_type',
         'support_description',
-        'volunteer_count',
-        'oai_help',
+        'volunteer_count',  // private
+        'oai_help',  // private
         'group_description_extra',
         'group_purpose'
     ]

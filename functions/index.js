@@ -74,6 +74,7 @@ async function get_rows(sheets, sheet_id) {
 
     let rows = await data.values.map((row) => make_row_obj(row))
     console.log(rows.length + ' rows')
+    console.log(rows[1])  // jay vs amir at 001 taxisw
     return rows
 }
 
@@ -125,7 +126,7 @@ async function write_rows(rows) {
 function make_row_obj(row_arr) {
     const schema = [
         'timestamp',
-        'group_email',
+        'contact_email',  // private
         'group_name',
         'postcode',
         'locations',
@@ -133,7 +134,7 @@ function make_row_obj(row_arr) {
         'link_social',
         'contact_first_name', // private
         'contact_last_name',  // private
-        'contact_email',  // private
+        'group_email',  
         'contact_telephone',  // private
         'group_type',
         'support_description',

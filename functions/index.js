@@ -62,7 +62,7 @@ async function authenticate(response) {
 async function get_rows(sheets, sheet_id) {
 
     // TODO get the whole sheet without specifying the max index?
-    const range = `Responses via online form!A2:Q${MAX_ROWS}`
+    const range = `Responses via online form!A2:AL${MAX_ROWS}`
     console.log(`Getting range ${range}`)
     const request = {
         spreadsheetId: sheet_id,
@@ -86,25 +86,47 @@ async function get_rows(sheets, sheet_id) {
 
 async function write_rows(rows) {
 
+    const public_fields = [
+        'timestamp',
+        'group_name',
+        'postcode',
+        'locations',
+        'link_primary',
+        'link_social',
+        'contact_first_name', // now public
+        'contact_last_name',  // now public
+        'group_email',  
+        'group_type',
+        'support_description',
+        'volunteer_count',  // now public
+        'group_description_extra',
+        'group_purpose',
+        'organisational_phone'  // new
+    ]
+    console.log('Public fields: ' + public_fields)
+    const private_fields = public_fields.concat([
+        'contact_email', 
+        'contact_telephone'
+    ])
+    console.log('Private fields: ' + private_fields)
+
     // combine to one object
-    var all_huge_doc = {} 
-    rows.forEach((row) => all_huge_doc[sheettime_to_id(row.timestamp)] = row)  // add each org to public_huge_doc, keyed by org id constructed from timestamp
-    let write_all_huge_doc = await db.collection('community_responses').doc('all').set(all_huge_doc);
-    console.log('Wrote all data')
+    var private_huge_doc = {} 
+    rows.forEach((row) => private_huge_doc[sheettime_to_id(row.timestamp)] = select_fields(row, private_fields))  // add each org to public_huge_doc, keyed by org id constructed from timestamp
+    
+    // log an example private org map
+    example_org_id = sheettime_to_id(rows[0].timestamp)
+    console.log('Example private org: ' + private_huge_doc[example_org_id])
+    let write_private_huge_doc = await db.collection('community_responses').doc('all').set(private_huge_doc);
+    console.log('Wrote all private data')
 
     // same again for public info only
     // yeah, I should refactor...
     var public_huge_doc = {} 
-    rows.forEach((row) => {
-        delete row.contact_first_name
-        delete row.contact_last_name
-        delete row.contact_email  // seperate to group email
-        delete row.contact_telephone
-        delete row.volunteer_count
-        delete row.oai_help
-        public_huge_doc[sheettime_to_id(row.timestamp)] = row
-        return ;
-    })
+    rows.forEach((row) => public_huge_doc[sheettime_to_id(row.timestamp)] = select_fields(row, public_fields))  // add each org to public_huge_doc, keyed by org id constructed from timestamp
+    // and log again
+    example_org_id = sheettime_to_id(rows[0].timestamp)
+    console.log('Example public org: ' + public_huge_doc[example_org_id])
     let write_public_huge_doc = await db.collection('community_responses').doc('public').set(public_huge_doc);
     console.log('Wrote public data')
 
@@ -116,6 +138,16 @@ async function write_rows(rows) {
     // })
     // await Promise.all(promises)
     // return 'Writing complete'  // absolutely must return something, for .then() to work
+}
+
+// https://stackoverflow.com/questions/38750705/filter-object-properties-by-key-in-es6
+function select_fields(raw, fields) {
+    return Object.keys(raw)
+    .filter(key => fields.includes(key))
+    .reduce((obj, key) => {
+        obj[key] = raw[key];
+        return obj;
+    }, {});
 }
 
 // outdated, one doc for all orgs now
@@ -130,24 +162,48 @@ async function write_rows(rows) {
 // }
 
 function make_row_obj(row_arr) {
+    // this is the assumed header for google sheets.
+    // it must exactly match the sheet columns
+    // TODO add validation checks to make sure it does
     const schema = [
-        'timestamp',
+        'timestamp',  // oai only
         'contact_email',  // private
         'group_name',
         'postcode',
         'locations',
         'link_primary',
         'link_social',
-        'contact_first_name', // private
-        'contact_last_name',  // private
+        'contact_first_name', // now public
+        'contact_last_name',  // now public
         'group_email',  
         'contact_telephone',  // private
         'group_type',
         'support_description',
-        'volunteer_count',  // private
-        'oai_help',  // private
+        'volunteer_count',  // now public
+        'oai_help',  // oai only
         'group_description_extra',
-        'group_purpose'
+        'group_purpose',
+        'activities_or_services',  // oai only
+        'daily_bulletin',  //oai only
+        'other_useful_support',  // oai only
+        'business_support',  // oai only
+        'how_can_oai_help',  // all oai only from here until org phone
+        'summarise_covid_response',
+        'how_can_oai_support',
+        'set_up_call',
+        'further_requests',
+        'personal_data_accept',
+        'contact_consent',
+        'use_daily_bulletin',
+        'other_support_needs',
+        'how_else_can_oai_support',
+        'organisational_needs',
+        'identify_priority_needs',
+        'activities_or_services_v2',
+        'describe_beneficiaries',
+        'oxford_council_confirmation',
+        'personal_contact_email_redundant',
+        'organisational_phone'  // public
     ]
     var row = {}
     entries = schema.map((e, i) => [[e], row_arr[i]])  // i.e. pairs

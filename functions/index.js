@@ -74,7 +74,13 @@ async function get_rows(sheets, sheet_id) {
 
     let rows = await data.values.map((row) => make_row_obj(row))
     console.log(rows.length + ' rows')
-    console.log(rows[1])  // jay vs amir at 001 taxisw
+    console.log(rows[1])  // example row to log
+    console.log(rows[46])  // example row to log
+    console.log(rows[47])  // example row to log
+    console.log(rows[48])  // example row to log
+    console.log(rows[49])  // example row to log
+    console.log(rows[50])  // example row to log
+    console.log(rows[51])  // example row to log
     return rows
 }
 

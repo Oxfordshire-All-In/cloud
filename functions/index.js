@@ -72,7 +72,8 @@ async function get_rows(sheets, sheet_id) {
     // https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get
     let data = (await sheets.spreadsheets.values.get(request)).data;
 
-    let rows = await data.values.map((row) => make_row_obj(row))
+    // https://flaviocopes.com/javascript-async-await-array-map/
+    let rows = await Promise.all(data.values.map((row) => make_row_obj(row)))
     console.log(rows.length + ' rows')
     console.log(rows[1])  // example row to log
     console.log(rows[46])  // example row to log
@@ -85,6 +86,8 @@ async function get_rows(sheets, sheet_id) {
 }
 
 async function write_rows(rows) {
+
+    console.log('example row to write: ', JSON.stringify(rows[0]))
 
     const public_fields = [
         'timestamp',
@@ -101,7 +104,9 @@ async function write_rows(rows) {
         'volunteer_count',  // now public
         'group_description_extra',
         'group_purpose',
-        'organisational_phone'  // new
+        'organisational_phone',  // new
+        'latitude',  // not in header, added by geocoding
+        'longitude'  // similarly
     ]
     console.log('Public fields: ' + public_fields)
     const private_fields = public_fields.concat([
@@ -110,27 +115,32 @@ async function write_rows(rows) {
     ])
     console.log('Private fields: ' + private_fields)
 
-    // combine to one object
-    var private_huge_doc = {} 
-    rows.forEach((row) => private_huge_doc[sheettime_to_id(row.timestamp)] = select_fields(row, private_fields))  // add each org to public_huge_doc, keyed by org id constructed from timestamp
-    
-    // log an example private org map
-    example_org_id = sheettime_to_id(rows[0].timestamp)
-    console.log('Example private org: ' + private_huge_doc[example_org_id])
-    let write_private_huge_doc = await db.collection('community_responses').doc('all').set(private_huge_doc);
-    console.log('Wrote all private data')
-
     // same again for public info only
     // yeah, I should refactor...
+    console.log('public first')
     var public_huge_doc = {} 
     rows.forEach((row) => public_huge_doc[sheettime_to_id(row.timestamp)] = select_fields(row, public_fields))  // add each org to public_huge_doc, keyed by org id constructed from timestamp
     // and log again
-    example_org_id = sheettime_to_id(rows[0].timestamp)
-    console.log('Example public org: ' + public_huge_doc[example_org_id])
-    let write_public_huge_doc = await db.collection('community_responses').doc('public').set(public_huge_doc);
-    console.log('Wrote public data')
+    example_org_id = sheettime_to_id(rows[1].timestamp)
+    console.log('Example public org: ' + JSON.stringify(public_huge_doc[example_org_id]))
+    public_doc_id = 'public_' + current_date_string()
+    let write_public_huge_doc = await db.collection('orgs_public').doc(public_doc_id).set(public_huge_doc);
+    console.log('Wrote public data to ' + public_doc_id)
 
-    return 'anything'  // need to return something for await in write_rows to work
+
+    // combine to one object
+    var private_huge_doc = {} 
+    rows.forEach((row) => private_huge_doc[sheettime_to_id(row.timestamp)] = select_fields(row, private_fields))  // add each org to public_huge_doc, keyed by org id constructed from timestamp
+    // log an example private org map
+    example_org_id = sheettime_to_id(rows[1].timestamp)
+    console.log('Example private org: ' + JSON.stringify(private_huge_doc[example_org_id]))
+    // write to db
+    private_doc_id = 'private_' + current_date_string()
+    let write_private_huge_doc = await db.collection('orgs_private').doc(private_doc_id).set(private_huge_doc);
+    console.log('Wrote private data to ' + private_doc_id)
+
+
+    return 'Successful write to ' + current_date_string()  // need to return something for await in write_rows to work
 
     // outdated, one doc for all orgs now
     // const promises = rows.map(async row => {
@@ -142,8 +152,11 @@ async function write_rows(rows) {
 
 // https://stackoverflow.com/questions/38750705/filter-object-properties-by-key-in-es6
 function select_fields(raw, fields) {
+    // get all keys
     return Object.keys(raw)
+    // filter to keys you want
     .filter(key => fields.includes(key))
+    // copy raw[key] to new object[key]
     .reduce((obj, key) => {
         obj[key] = raw[key];
         return obj;
@@ -220,15 +233,19 @@ function make_row_obj(row_arr) {
       });
 
     // add lat/long to object, calculated w/ API call
-    postcodeToLatLong(row.postcode)
+    // .then and .catch will also return promise, so whole func returns promise of a row
+    return postcodeToLatLong(row.postcode)
         .then((latlong) => {
             row.latitude = latlong[0]
             row.longitude = latlong[1]
-            return 'complete'
+            return row
             })
-        .catch((x) => console.log('Caught'));  // catch must accept an arg
-    return row
+        .catch((x) => {  // catch must accept an argument
+            console.log('Caught')
+            return row
+        })
 }
+
 
 // modified from app script
 async function postcodeToLatLong(raw_postcode) {
@@ -267,6 +284,14 @@ function sheettime_to_id(s) {
     i = Number(d).toString(36)
     // console.log(i)
     return i
+}
+
+function current_date_string() {
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
+    const yyyy = today.getFullYear();
+    return yyyy + '_' + mm + '_' + dd;
 }
 
 exports.testing = functions.https.onRequest((request, response) => {

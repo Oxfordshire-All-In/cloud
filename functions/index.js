@@ -267,23 +267,31 @@ async function postcodeToLatLong(raw_postcode) {
 
 
 function sheettime_to_id(s) {
-    var parts = s.split(' ')
-    date = parts[0]
-    // console.log(date)
-    day = date.slice(0, 2)
-    month = date.slice(3, 5)
-    year = date.slice(6, 10)
-    time = parts[1]
-    // console.log(time)
-    hour = time.slice(0, 2)
-    minute = time.slice(3, 5)
-    second = time.slice(6, 8)
-    // console.log(d)
-    // console.log(d.toString(36))
-    d = new Date(year, month, day, hour, minute, second)
-    i = Number(d).toString(36)
-    // console.log(i)
-    return i
+    try {
+        var parts = s.split(' ')
+        date = parts[0]
+        // console.log(date)
+        day = date.slice(0, 2)
+        month = date.slice(3, 5)
+        year = date.slice(6, 10)
+        time = parts[1]
+        // console.log(time)
+        hour = time.slice(0, 2)
+        minute = time.slice(3, 5)
+        second = time.slice(6, 8)
+        // console.log(d)
+        // console.log(d.toString(36))
+        d = new Date(year, month, day, hour, minute, second)
+        i = Number(d).toString(36)
+        // console.log(i)
+        return i
+    }
+    catch (err) {
+        console.log(err)
+        custom_str = 'Failed to get id from timestamp: ' + s +' (undefined if not shown - missing from sheet?)'
+        throw custom_str
+    }
+
 }
 
 function current_date_string() {

@@ -74,12 +74,10 @@ async function get_rows(sheets, sheet_id) {
 
     // https://flaviocopes.com/javascript-async-await-array-map/
     let rows = await Promise.all(data.values.map((row) => make_row_obj(row)))
-    console.log(rows.length + ' rows')
+    console.log('Read ' + rows.length + ' rows')
     console.log(rows[1])  // example row to log
     console.log(rows[46])  // example row to log
     console.log(rows[47])  // example row to log
-    console.log(rows[48])  // example row to log
-    console.log(rows[49])  // example row to log
     console.log(rows[50])  // example row to log
     console.log(rows[51])  // example row to log
     return rows
@@ -87,6 +85,7 @@ async function get_rows(sheets, sheet_id) {
 
 async function write_rows(rows) {
 
+    console.log('Rows to write: ' + rows.length)
     console.log('example row to write: ', JSON.stringify(rows[0]))
 
     const public_fields = [
@@ -106,7 +105,10 @@ async function write_rows(rows) {
         'group_purpose',
         'organisational_phone',  // new
         'latitude',  // not in header, added by geocoding
-        'longitude'  // similarly
+        'longitude',  // similarly
+        // underscore to denote dev fields
+        // '_validEmail',
+        // '_validUrl'
     ]
     console.log('Public fields: ' + public_fields)
     const private_fields = public_fields.concat([
@@ -119,7 +121,23 @@ async function write_rows(rows) {
     // yeah, I should refactor...
     console.log('public first')
     var public_huge_doc = {} 
+
+    ids = rows.map((row) => sheettime_to_id(row.timestamp))
+    console.log('Made ' + ids.length + 'ids')
+    var counts = {};
+    for (var i = 0; i < ids.length; i++) {
+        counts[ids[i]] = 1 + (counts[ids[i]] || 0);
+    }
+    console.log(counts)
+    duplicate_times = Object.keys(counts).filter((id) => counts[id] > 1)
+    if (duplicate_times.length > 0) {
+        // these repeat - go check the sheet
+        // http://extraconversion.com/base-number/base-36 then https://www.epochconverter.com/ for raw timestamp
+        throw duplicate_times
+    }
+
     rows.forEach((row) => public_huge_doc[sheettime_to_id(row.timestamp)] = select_fields(row, public_fields))  // add each org to public_huge_doc, keyed by org id constructed from timestamp
+    console.log('Added ' + Object.keys(public_huge_doc).length + 'orgs to public doc object')
     // and log again
     example_org_id = sheettime_to_id(rows[1].timestamp)
     console.log('Example public org: ' + JSON.stringify(public_huge_doc[example_org_id]))
@@ -133,6 +151,7 @@ async function write_rows(rows) {
     rows.forEach((row) => private_huge_doc[sheettime_to_id(row.timestamp)] = select_fields(row, private_fields))  // add each org to public_huge_doc, keyed by org id constructed from timestamp
     // log an example private org map
     example_org_id = sheettime_to_id(rows[1].timestamp)
+    console.log('Added ' + Object.keys(private_huge_doc).length + 'orgs to private doc object')
     console.log('Example private org: ' + JSON.stringify(private_huge_doc[example_org_id]))
     // write to db
     private_doc_id = 'private_' + current_date_string()
@@ -232,6 +251,10 @@ function make_row_obj(row_arr) {
         }
       });
 
+    //  TODO add serverside checks
+    // row._validURL = validURL(row.link_primary)
+    // row._val
+
     // add lat/long to object, calculated w/ API call
     // .then and .catch will also return promise, so whole func returns promise of a row
     return postcodeToLatLong(row.postcode)
@@ -301,6 +324,25 @@ function current_date_string() {
     const yyyy = today.getFullYear();
     return yyyy + '_' + mm + '_' + dd;
 }
+
+
+// TODO add server-side checks
+// To check if a string is a valid url
+// function validURL(str) {
+//     var pattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
+//       '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // domain name
+//       '((\\d{1,3}\\.){3}\\d{1,3}))'+ // OR ip (v4) address
+//       '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ // port and path
+//       '(\\?[;&a-z\\d%_.~+=-]*)?'+ // query string
+//       '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
+//     return !!pattern.test(str);
+//   }
+  
+//   function validEmail(str) {
+//     var pattern = new RegExp('^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$', 'i');
+//     return !!pattern.test(str)
+//   }
+  
 
 exports.testing = functions.https.onRequest((request, response) => {
 

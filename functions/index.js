@@ -188,6 +188,7 @@ function make_row_obj(row_arr) {
         'link_social',
         'contact_first_name', // now public
         'contact_last_name',  // now public
+        'organisational_phone',  // public
         'group_email',  
         'contact_telephone',  // private
         'group_type',
@@ -215,8 +216,7 @@ function make_row_obj(row_arr) {
         'activities_or_services_v2',
         'describe_beneficiaries',
         'oxford_council_confirmation',
-        'personal_contact_email_redundant',
-        'organisational_phone'  // public
+        'personal_contact_email_redundant'
     ]
     var row = {}
     entries = schema.map((e, i) => [[e], row_arr[i]])  // i.e. pairs

@@ -183,8 +183,11 @@ function select_fields(raw, fields) {
     // copy raw[key] to new object[key]
     .reduce((obj, key) => {
       if (raw[key] !== '') {
+        // Capitalises postcode
+        if (key === 'postcode') {
+          obj[key] = raw[key].toUpperCase()
         // Checks if non blank email field is valid
-        if (key === 'group_email' || key === 'contact_email') {
+        } else if (key === 'group_email' || key === 'contact_email') {
           obj[key] = {
             'value': (raw[key]).trim(),
             'valid': validEmail((raw[key]).trim())
@@ -196,9 +199,25 @@ function select_fields(raw, fields) {
             raw[key] = "http://" + raw[key];
           }
           obj[key] = {
-            'value': raw[key],
-            'valid': validURL(raw[key])
+            'value'    : raw[key],
+            'valid'    : validURL(raw[key]),
+            'hostname' : extractHostname(raw[key])
           }
+        } else if (key === 'link_social') {
+          raw[key] = raw[key].replace(/;/g, ",")
+          links_list = raw[key].split(",");
+          for (var i = 0; i < links_list.length; i++) {
+            var link = links_list[i].toLowerCase().trim()
+            if (link.substring(0, 3) === "www") {
+              link = "http://" + link;
+            }
+            links_list[i] = {
+              'value'    : link,
+              'valid'    : validURL(link),
+              'hostname' : extractHostname(link)
+            }
+          }
+          obj[key] = links_list
         } else {
           obj[key] = raw[key];
         }
@@ -370,6 +389,26 @@ function validURL(str) {
 function validEmail(str) {
   var pattern = new RegExp('^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,9}$', 'i');
   return Boolean(pattern.test(str))
+}
+// extract domain name from URL
+function extractHostname(url) {
+  var hostname;
+  //find & remove protocol (http, ftp, etc.) and get hostname
+  if (url.indexOf("//") > -1) {
+    hostname = url.split('/')[2];
+  } else {
+    hostname = url.split('/')[0];
+  }
+  if (hostname.indexOf("www.") > -1) {
+    hostname = hostname.split('www.')[1];
+  }
+  //find & remove port number
+  hostname = hostname.split(':')[0];
+  //find & remove "?"
+  hostname = hostname.split('?')[0];
+  //find & remove top level domain
+  hostname = hostname.split('.')[0];
+  return hostname;
 }
 
 

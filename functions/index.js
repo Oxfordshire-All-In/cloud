@@ -24,7 +24,7 @@ const MAX_ROWS = 800
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 
 
-exports.read_sheets = functions.https.onRequest((request, response) => {
+exports.read_sheets = functions.region("europe-west2").https.onRequest((request, response) => {
 
   const sheet_id = '11Gwlq47Et6sNK-Cfopli5XP_arI40NatrU4IvjQfxGM';
   sheets_p = authenticate(response)

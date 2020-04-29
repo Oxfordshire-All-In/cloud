@@ -325,38 +325,22 @@ function current_date_string() {
     return yyyy + '_' + mm + '_' + dd;
 }
 
+// Checks if URL is valid
+function validURL(str) {
+  var pattern = new RegExp('^(https?:\\/\\/)?(www\\.)?' + // protocol
+    '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
+    '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
+    '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
+    '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
+    '(\\#[-a-z\\d_]*)?$', 'im'); // fragment locator
+  return !!pattern.test(str);
+}
 
-// TODO add server-side checks
-// To check if a string is a valid url
-// function validURL(str) {
-//     var pattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
-//       '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // domain name
-//       '((\\d{1,3}\\.){3}\\d{1,3}))'+ // OR ip (v4) address
-//       '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ // port and path
-//       '(\\?[;&a-z\\d%_.~+=-]*)?'+ // query string
-//       '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
-//     return !!pattern.test(str);
-//   }
-  
-//   function validEmail(str) {
-//     var pattern = new RegExp('^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$', 'i');
-//     return !!pattern.test(str)
-//   }
-  
-
-exports.testing = functions.https.onRequest((request, response) => {
-
-
-    db.collection("community_responses").listDocuments().then((docs) => response.send('Got ' + docs.length +' ...' + docs)).catch('Failed')
-
-    // var s = "19/03/2020 10:44:29"
-
-    // // Calling Date without the new keyword returns a string representing the current date and time.
-    // // var d = Date.parse(s)
-    // const i = sheettime_to_id(s)
-    // response.status(200).write('id ' + i)
-})
-
+// Checks if email address is valid
+function validEmail(str) {
+  var pattern = new RegExp('^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,9}$', 'i');
+  return !!pattern.test(str)
+}
 
 
 exports.write_test = functions.https.onRequest((request, response) => {
@@ -381,14 +365,3 @@ exports.write_test = functions.https.onRequest((request, response) => {
     response.send("Write complete, may or may not be successful");
 
 });
-
-
-
-// // Create and Deploy Your First Cloud Functions
-// // https://firebase.google.com/docs/functions/write-firebase-functions
-exports.helloWorld = functions.https.onRequest((request, response) => {
-    response.send("Hello from Firebase!");
-   });
-
-
-

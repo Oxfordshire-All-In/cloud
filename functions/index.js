@@ -182,8 +182,30 @@ function select_fields(raw, fields) {
     .filter(key => fields.includes(key))
     // copy raw[key] to new object[key]
     .reduce((obj, key) => {
-        obj[key] = raw[key];
-        return obj;
+      if (raw[key] !== '') {
+        // Checks if non blank email field is valid
+        if (key === 'group_email' || key === 'contact_email') {
+          obj[key] = {
+            'value': (raw[key]).trim(),
+            'valid': validEmail((raw[key]).trim())
+          }
+          // Checks if primary link is valid
+        } else if (key === 'link_primary') {
+          raw[key] = (raw[key]).toLowerCase().trim()
+          if (raw[key].substring(0, 3) === "www") {
+            raw[key] = "http://" + raw[key];
+          }
+          obj[key] = {
+            'value': raw[key],
+            'valid': validURL(raw[key])
+          }
+        } else {
+          obj[key] = raw[key];
+        }
+      } else {
+        obj[key] = '';
+      }
+      return obj;
     }, {});
 }
 

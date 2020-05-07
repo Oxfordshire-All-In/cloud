@@ -97,6 +97,7 @@ async function write_rows(rows) {
     'timestamp',
     'group_name',
     'postcode',
+    'radius',
     'locations',
     'link_primary',
     'link_social',
@@ -249,6 +250,7 @@ function make_row_obj(row_arr) {
     'group_name',
     'postcode',
     'locations',
+    'radius',
     'link_primary',
     'link_social',
     'contact_first_name', // now public

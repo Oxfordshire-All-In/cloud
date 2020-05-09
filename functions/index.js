@@ -237,9 +237,6 @@ function adjust_duplicate_postcodes(rows) {
         }
     }
 
-    console.log('indices')
-    console.log(postcode_indices)
-
     for (const postcode in postcode_indices) {
         indices = postcode_indices[postcode]
         if (indices.length > 1) {
@@ -258,13 +255,15 @@ function adjust_duplicate_postcodes(rows) {
 
 function adjust_latlong(row, n_duplicates, duplicate_n) {
     var earth_radius_m = 6371000
-    var shift_in_m = 2000  // actually wrong, shift is more like 1/10th of this, not sure why - but hey it works
+    // increase shift logarithmically with more orgs to avoid crowding
+    // https://www.wolframalpha.com/input/?i=log+x+from+2+to+6
+    var shift_in_m = 3000 + Math.log(n_duplicates)  // actually wrong, shift is more like 1/10th of this in m, not sure why - but hey it works
     var latlong_shift_magnitude = shift_in_m / earth_radius_m  // small angle approx
     // adjust lat/long of each row by small amount in 360/n direction
     var shift_theta = (2 * Math.PI / n_duplicates) * duplicate_n
     var delta_lat = Math.sin(shift_theta) * latlong_shift_magnitude
     var delta_long = Math.cos(shift_theta) * latlong_shift_magnitude
-    console.log(duplicate_n + ' Shifting ' + row.postcode + ' by ' + delta_lat + ', ' + delta_long )
+    // console.log(duplicate_n + ' Shifting ' + row.postcode + ' by ' + delta_lat + ', ' + delta_long )
     row.latitude = row.latitude + delta_lat 
     row.longitude = row.longitude + delta_long 
     // inplace

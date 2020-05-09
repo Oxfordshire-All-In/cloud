@@ -228,18 +228,27 @@ function adjust_duplicate_postcodes(rows) {
     var postcode_indices = {}  // {postcode: [array of indices with that postcode]}
     for (var i = 0; i < rows.length; i++) {
         var postcode = rows[i].postcode
-        postcode_indices[postcode] = postcode_indices[postcode] ? postcode_indices[postcode].push(i) : [i]
+        // console.log(i + ' ' + postcode + ' ' + postcode_indices[postcode])
+        if (Array.isArray(postcode_indices[postcode])) {
+            postcode_indices[postcode].push(i)
+        }
+        else {
+            postcode_indices[postcode] = [i]
+        }
     }
+
+    console.log('indices')
+    console.log(postcode_indices)
 
     for (const postcode in postcode_indices) {
         indices = postcode_indices[postcode]
         if (indices.length > 1) {
             var n_duplicates = indices.length
-            console.log('Postcode ' + postcode + ' has ' + n_duplicates + 'n duplicates: ' + indices)
+            console.log('Postcode ' + postcode + ' has ' + n_duplicates + ' duplicates: ' + indices)
             var duplicate_n = 0
             indices.forEach((index) => {
-                duplicate_n += 1
                 adjust_latlong(rows[index], n_duplicates, duplicate_n)  // inplace
+                duplicate_n += 1
             })
         }
     }
@@ -249,12 +258,13 @@ function adjust_duplicate_postcodes(rows) {
 
 function adjust_latlong(row, n_duplicates, duplicate_n) {
     var earth_radius_m = 6371000
-    var shift_in_m = 25
-    var shift_in_earth_radii = shift_in_m / earth_radius_m
+    var shift_in_m = 2000  // actually wrong, shift is more like 1/10th of this, not sure why - but hey it works
+    var latlong_shift_magnitude = shift_in_m / earth_radius_m  // small angle approx
     // adjust lat/long of each row by small amount in 360/n direction
-    var theta = (2 * Math.PI / n_duplicates) * duplicate_n
-    var delta_lat = sin(theta) * shift_in_earth_radii
-    var delta_long = cos(theta) * shift_in_earth_radii
+    var shift_theta = (2 * Math.PI / n_duplicates) * duplicate_n
+    var delta_lat = Math.sin(shift_theta) * latlong_shift_magnitude
+    var delta_long = Math.cos(shift_theta) * latlong_shift_magnitude
+    console.log(duplicate_n + ' Shifting ' + row.postcode + ' by ' + delta_lat + ', ' + delta_long )
     row.latitude = row.latitude + delta_lat 
     row.longitude = row.longitude + delta_long 
     // inplace

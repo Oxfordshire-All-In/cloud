@@ -31,6 +31,7 @@ exports.read_sheets = functions.region("europe-west2").https.onRequest((request,
 
   sheets_p
     .then((sheets_api) => get_rows(sheets_api, sheet_id))
+    .then((rows) => adjust_duplicate_postcodes(rows))
     .then((rows) => write_rows(rows))
     .then((write_output) => response.send("Write: " + (write_output)))
     .catch((x) => response.status(500).send('Failed ' + x))
@@ -164,15 +165,8 @@ async function write_rows(rows) {
   let write_private_huge_doc = await db.collection('orgs_private').doc(private_doc_id).set(private_huge_doc);
   console.log('Wrote private data to ' + private_doc_id)
 
-
   return 'Successful write to ' + current_date_string() // need to return something for await in write_rows to work
 
-  // outdated, one doc for all orgs now
-  // const promises = rows.map(async row => {
-  //     await write_row(row)
-  // })
-  // await Promise.all(promises)
-  // return 'Writing complete'  // absolutely must return something, for .then() to work
 }
 
 // https://stackoverflow.com/questions/38750705/filter-object-properties-by-key-in-es6
@@ -229,16 +223,42 @@ function select_fields(raw, fields) {
     }, {});
 }
 
-// outdated, one doc for all orgs now
-// async function write_row(row) {
-//     // https://googleapis.dev/nodejs/firestore/latest/CollectionReference.html#add
-//     // use timestamp as id
-//     let doc_path = await sheettime_to_id(row.timestamp);
-//     let set_row = await db.collection('community_responses').doc(doc_path).set(row);
+function adjust_duplicate_postcodes(rows) {
+    // identify all sets of n duplicates
+    var postcode_indices = {}  // {postcode: [array of indices with that postcode]}
+    for (var i = 0; i < rows.length; i++) {
+        var postcode = rows[i].postcode
+        postcode_indices[postcode] = postcode_indices[postcode] ? postcode_indices[postcode].push(i) : [i]
+    }
 
-//     console.log('Wrote ', doc_path)
-//     return set_row  // need to return the promise for await in write_rows to work
-// }
+    for (const postcode in postcode_indices) {
+        indices = postcode_indices[postcode]
+        if (indices.length > 1) {
+            var n_duplicates = indices.length
+            console.log('Postcode ' + postcode + ' has ' + n_duplicates + 'n duplicates: ' + indices)
+            var duplicate_n = 0
+            indices.forEach((index) => {
+                duplicate_n += 1
+                adjust_latlong(rows[index], n_duplicates, duplicate_n)  // inplace
+            })
+        }
+    }
+
+    return rows  // to be awaited
+}
+
+function adjust_latlong(row, n_duplicates, duplicate_n) {
+    var earth_radius_m = 6371000
+    var shift_in_m = 25
+    var shift_in_earth_radii = shift_in_m / earth_radius_m
+    // adjust lat/long of each row by small amount in 360/n direction
+    var theta = (2 * Math.PI / n_duplicates) * duplicate_n
+    var delta_lat = sin(theta) * shift_in_earth_radii
+    var delta_long = cos(theta) * shift_in_earth_radii
+    row.latitude = row.latitude + delta_lat 
+    row.longitude = row.longitude + delta_long 
+    // inplace
+}
 
 function make_row_obj(row_arr) {
   // this is the assumed header for google sheets.

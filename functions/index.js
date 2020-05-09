@@ -213,6 +213,8 @@ function select_fields(raw, fields) {
             }
           }
           obj[key] = links_list
+        } else if (typeof(raw[key]) === "string") {
+          obj[key] = (raw[key]).trim()
         } else {
           obj[key] = raw[key];
         }
@@ -264,8 +266,8 @@ function adjust_latlong(row, n_duplicates, duplicate_n) {
     var delta_lat = Math.sin(shift_theta) * latlong_shift_magnitude
     var delta_long = Math.cos(shift_theta) * latlong_shift_magnitude
     // console.log(duplicate_n + ' Shifting ' + row.postcode + ' by ' + delta_lat + ', ' + delta_long )
-    row.latitude = row.latitude + delta_lat 
-    row.longitude = row.longitude + delta_long 
+    row.latitude = row.latitude + delta_lat
+    row.longitude = row.longitude + delta_long
     // inplace
 }
 

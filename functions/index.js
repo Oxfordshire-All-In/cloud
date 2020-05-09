@@ -31,6 +31,7 @@ exports.read_sheets = functions.region("europe-west2").https.onRequest((request,
 
   sheets_p
     .then((sheets_api) => get_rows(sheets_api, sheet_id))
+    .then((rows) => adjust_duplicate_postcodes(rows))
     .then((rows) => write_rows(rows))
     .then((write_output) => response.send("Write: " + (write_output)))
     .catch((x) => response.status(500).send('Failed ' + x))
@@ -164,15 +165,8 @@ async function write_rows(rows) {
   let write_private_huge_doc = await db.collection('orgs_private').doc(private_doc_id).set(private_huge_doc);
   console.log('Wrote private data to ' + private_doc_id)
 
-
   return 'Successful write to ' + current_date_string() // need to return something for await in write_rows to work
 
-  // outdated, one doc for all orgs now
-  // const promises = rows.map(async row => {
-  //     await write_row(row)
-  // })
-  // await Promise.all(promises)
-  // return 'Writing complete'  // absolutely must return something, for .then() to work
 }
 
 // https://stackoverflow.com/questions/38750705/filter-object-properties-by-key-in-es6
@@ -229,16 +223,51 @@ function select_fields(raw, fields) {
     }, {});
 }
 
-// outdated, one doc for all orgs now
-// async function write_row(row) {
-//     // https://googleapis.dev/nodejs/firestore/latest/CollectionReference.html#add
-//     // use timestamp as id
-//     let doc_path = await sheettime_to_id(row.timestamp);
-//     let set_row = await db.collection('community_responses').doc(doc_path).set(row);
+function adjust_duplicate_postcodes(rows) {
+    // identify all sets of n duplicates
+    var postcode_indices = {}  // {postcode: [array of indices with that postcode]}
+    for (var i = 0; i < rows.length; i++) {
+        var postcode = rows[i].postcode
+        // console.log(i + ' ' + postcode + ' ' + postcode_indices[postcode])
+        if (Array.isArray(postcode_indices[postcode])) {
+            postcode_indices[postcode].push(i)
+        }
+        else {
+            postcode_indices[postcode] = [i]
+        }
+    }
 
-//     console.log('Wrote ', doc_path)
-//     return set_row  // need to return the promise for await in write_rows to work
-// }
+    for (const postcode in postcode_indices) {
+        indices = postcode_indices[postcode]
+        if (indices.length > 1) {
+            var n_duplicates = indices.length
+            console.log('Postcode ' + postcode + ' has ' + n_duplicates + ' duplicates: ' + indices)
+            var duplicate_n = 0
+            indices.forEach((index) => {
+                adjust_latlong(rows[index], n_duplicates, duplicate_n)  // inplace
+                duplicate_n += 1
+            })
+        }
+    }
+
+    return rows  // to be awaited
+}
+
+function adjust_latlong(row, n_duplicates, duplicate_n) {
+    var earth_radius_m = 6371000
+    // increase shift logarithmically with more orgs to avoid crowding
+    // https://www.wolframalpha.com/input/?i=log+x+from+2+to+6
+    var shift_in_m = 3000 + Math.log(n_duplicates)  // actually wrong, shift is more like 1/10th of this in m, not sure why - but hey it works
+    var latlong_shift_magnitude = shift_in_m / earth_radius_m  // small angle approx
+    // adjust lat/long of each row by small amount in 360/n direction
+    var shift_theta = (2 * Math.PI / n_duplicates) * duplicate_n
+    var delta_lat = Math.sin(shift_theta) * latlong_shift_magnitude
+    var delta_long = Math.cos(shift_theta) * latlong_shift_magnitude
+    // console.log(duplicate_n + ' Shifting ' + row.postcode + ' by ' + delta_lat + ', ' + delta_long )
+    row.latitude = row.latitude + delta_lat 
+    row.longitude = row.longitude + delta_long 
+    // inplace
+}
 
 function make_row_obj(row_arr) {
   // this is the assumed header for google sheets.

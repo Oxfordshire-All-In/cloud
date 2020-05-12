@@ -181,7 +181,7 @@ function select_fields(raw, fields) {
         // Capitalises postcode
         if (key === 'postcode') {
           obj[key] = raw[key].toUpperCase()
-        // Checks if non blank email field is valid
+          // Checks if non blank email field is valid
         } else if (key === 'group_email' || key === 'contact_email') {
           obj[key] = {
             'value': (raw[key]).trim(),
@@ -194,9 +194,9 @@ function select_fields(raw, fields) {
             raw[key] = "http://" + raw[key];
           }
           obj[key] = {
-            'value'    : raw[key],
-            'valid'    : validURL(raw[key]),
-            'hostname' : extractHostname(raw[key])
+            'value': raw[key],
+            'valid': validURL(raw[key]),
+            'hostname': extractHostname(raw[key])
           }
         } else if (key === 'link_social') {
           raw[key] = raw[key].replace(/;/g, ",")
@@ -207,9 +207,9 @@ function select_fields(raw, fields) {
               link = "http://" + link;
             }
             links_list[i] = {
-              'value'    : link,
-              'valid'    : validURL(link),
-              'hostname' : extractHostname(link)
+              'value': link,
+              'valid': validURL(link),
+              'hostname': extractHostname(link)
             }
           }
           obj[key] = links_list
@@ -226,49 +226,48 @@ function select_fields(raw, fields) {
 }
 
 function adjust_duplicate_postcodes(rows) {
-    // identify all sets of n duplicates
-    var postcode_indices = {}  // {postcode: [array of indices with that postcode]}
-    for (var i = 0; i < rows.length; i++) {
-        var postcode = rows[i].postcode
-        // console.log(i + ' ' + postcode + ' ' + postcode_indices[postcode])
-        if (Array.isArray(postcode_indices[postcode])) {
-            postcode_indices[postcode].push(i)
-        }
-        else {
-            postcode_indices[postcode] = [i]
-        }
+  // identify all sets of n duplicates
+  var postcode_indices = {} // {postcode: [array of indices with that postcode]}
+  for (var i = 0; i < rows.length; i++) {
+    var postcode = rows[i].postcode
+    // console.log(i + ' ' + postcode + ' ' + postcode_indices[postcode])
+    if (Array.isArray(postcode_indices[postcode])) {
+      postcode_indices[postcode].push(i)
+    } else {
+      postcode_indices[postcode] = [i]
     }
+  }
 
-    for (const postcode in postcode_indices) {
-        indices = postcode_indices[postcode]
-        if (indices.length > 1) {
-            var n_duplicates = indices.length
-            console.log('Postcode ' + postcode + ' has ' + n_duplicates + ' duplicates: ' + indices)
-            var duplicate_n = 0
-            indices.forEach((index) => {
-                adjust_latlong(rows[index], n_duplicates, duplicate_n)  // inplace
-                duplicate_n += 1
-            })
-        }
+  for (const postcode in postcode_indices) {
+    indices = postcode_indices[postcode]
+    if (indices.length > 1) {
+      var n_duplicates = indices.length
+      console.log('Postcode ' + postcode + ' has ' + n_duplicates + ' duplicates: ' + indices)
+      var duplicate_n = 0
+      indices.forEach((index) => {
+        adjust_latlong(rows[index], n_duplicates, duplicate_n) // inplace
+        duplicate_n += 1
+      })
     }
+  }
 
-    return rows  // to be awaited
+  return rows // to be awaited
 }
 
 function adjust_latlong(row, n_duplicates, duplicate_n) {
-    var earth_radius_m = 6371000
-    // increase shift logarithmically with more orgs to avoid crowding
-    // https://www.wolframalpha.com/input/?i=log+x+from+2+to+6
-    var shift_in_m = 3000 + Math.log(n_duplicates)  // actually wrong, shift is more like 1/10th of this in m, not sure why - but hey it works
-    var latlong_shift_magnitude = shift_in_m / earth_radius_m  // small angle approx
-    // adjust lat/long of each row by small amount in 360/n direction
-    var shift_theta = (2 * Math.PI / n_duplicates) * duplicate_n
-    var delta_lat = Math.sin(shift_theta) * latlong_shift_magnitude
-    var delta_long = Math.cos(shift_theta) * latlong_shift_magnitude
-    // console.log(duplicate_n + ' Shifting ' + row.postcode + ' by ' + delta_lat + ', ' + delta_long )
-    row.latitude = row.latitude + delta_lat
-    row.longitude = row.longitude + delta_long
-    // inplace
+  var earth_radius_m = 6371000
+  // increase shift logarithmically with more orgs to avoid crowding
+  // https://www.wolframalpha.com/input/?i=log+x+from+2+to+6
+  var shift_in_m = 3000 + Math.log(n_duplicates) // actually wrong, shift is more like 1/10th of this in m, not sure why - but hey it works
+  var latlong_shift_magnitude = shift_in_m / earth_radius_m // small angle approx
+  // adjust lat/long of each row by small amount in 360/n direction
+  var shift_theta = (2 * Math.PI / n_duplicates) * duplicate_n
+  var delta_lat = Math.sin(shift_theta) * latlong_shift_magnitude
+  var delta_long = Math.cos(shift_theta) * latlong_shift_magnitude
+  // console.log(duplicate_n + ' Shifting ' + row.postcode + ' by ' + delta_lat + ', ' + delta_long )
+  row.latitude = row.latitude + delta_lat
+  row.longitude = row.longitude + delta_long
+  // inplace
 }
 
 function make_row_obj(row_arr) {

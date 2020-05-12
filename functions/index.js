@@ -182,11 +182,21 @@ function select_fields(raw, fields) {
         if (key === 'postcode') {
           obj[key] = raw[key].toUpperCase()
           // Checks if non blank email field is valid
-        } else if (key === 'group_email' || key === 'contact_email') {
+        } else if (key === 'group_email') {
           obj[key] = {
             'value': (raw[key]).trim(),
             'valid': validEmail((raw[key]).trim())
           }
+        } else if (key === 'contact_email') {
+          raw[key] = raw[key].replace(/;/g, ",")
+          emailList = raw[key].split(",");
+          for (i = 0; i < emailList.length; i++) {
+            emailList[i] = {
+              'value': emailList[i].trim(),
+              'valid': validEmail(emailList[i].trim())
+            }
+          }
+          obj[key] = emailList
           // Checks if primary link is valid
         } else if (key === 'link_primary') {
           raw[key] = (raw[key]).toLowerCase().trim()
@@ -201,7 +211,7 @@ function select_fields(raw, fields) {
         } else if (key === 'link_social') {
           raw[key] = raw[key].replace(/;/g, ",")
           links_list = raw[key].split(",");
-          for (var i = 0; i < links_list.length; i++) {
+          for (i = 0; i < links_list.length; i++) {
             var link = links_list[i].toLowerCase().trim()
             if (link.substring(0, 3) === "www") {
               link = "http://" + link;
@@ -213,6 +223,13 @@ function select_fields(raw, fields) {
             }
           }
           obj[key] = links_list
+        } else if (key === 'contact_first_name' || key === 'contact_last_name') {
+          raw[key] = raw[key].replace(/;/g, ",")
+          nameList = raw[key].split(",");
+          for (i = 0; i < nameList.length; i++) {
+            nameList[i] = nameList[i].trim()
+          }
+          obj[key] = nameList
         } else if (typeof(raw[key]) === "string") {
           obj[key] = (raw[key]).trim()
         } else {

@@ -69,7 +69,7 @@ async function get_rows(sheets, sheet_id) {
 
   // TODO get the whole sheet without specifying the max index?
   const range = `Responses via online form!A2:AL${MAX_ROWS}`
-  console.log(`Getting range ${range}`)
+  console.log(`Getting range: ${range}`)
   const request = {
     spreadsheetId: sheet_id,
     range: range,
@@ -461,7 +461,7 @@ function extractHostname(url) {
 }
 
 
-exports.write_test = functions.https.onRequest((request, response) => {
+exports.write_test = functions.region("europe-west2").https.onRequest((request, response) => {
   let docRef = db.collection('users').doc('alovelace');
 
   let setAda = docRef.set({

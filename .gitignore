@@ -66,3 +66,6 @@ node_modules/
 
 # service account private key
 mapping-7c4a8-firebase-adminsdk-rc52j-695d47c31b.json
+
+# IDE settings
+.vscode

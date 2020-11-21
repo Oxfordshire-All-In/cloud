@@ -10,14 +10,14 @@
     "logs": "firebase functions:log"
   },
   "engines": {
-    "node": "8"
+    "node": "12"
   },
   "dependencies": {
-    "firebase-admin": "^8.6.0",
+    "firebase-admin": "^9.4.1",
     "firebase-functions": "^3.6.1",
     "google-auth-library": "^6.0.0",
-    "googleapis": "^39.2.0",
-    "node-fetch": "^2.6.0",
+    "googleapis": "^65.0.0",
+    "node-fetch": "^2.6.1",
     "request": "^2.88.2"
   },
   "devDependencies": {
